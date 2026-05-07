@@ -396,7 +396,6 @@ chmod 600 /home/node/.openclaw/openclaw.json
 # ── Sanity-check config with OpenClaw doctor ──
 run_openclaw_doctor_preflight() {
   local doctor_log="/home/node/.openclaw/doctor.log"
-  local config_backup="/home/node/.openclaw/openclaw.json.bak"
 
   if ! command -v openclaw >/dev/null 2>&1; then
     echo "⚠️  Skipping OpenClaw doctor check because the CLI is unavailable"
@@ -407,7 +406,7 @@ run_openclaw_doctor_preflight() {
   rm -f "$doctor_log"
 
   if OPENCLAW_SERVICE_REPAIR_POLICY=external openclaw doctor --fix --non-interactive >"$doctor_log" 2>&1; then
-    rm -f "$config_backup"
+    rm -f "/home/node/.openclaw/openclaw.json.bak"
     echo "  ✅ Config sanity check passed"
     return 0
   fi
