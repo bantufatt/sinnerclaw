@@ -79,7 +79,7 @@ If your JSON already contains your model/provider keys and gateway auth, you do 
 This is the best option if you want:
 
 - provider keys stored directly inside `openclaw.json`
-- model/provider configs to keep following upstream OpenClaw changes
+- model/provider configs to stay synchronized with upstream OpenClaw changes
 - multi-provider setups or API rotation managed entirely in JSON
 - zero need to create 10–16 extra HF secrets just to mirror the same config
 

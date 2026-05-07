@@ -406,8 +406,8 @@ run_openclaw_doctor_preflight() {
   rm -f "$doctor_log"
 
   # HF Spaces manages the gateway process outside OpenClaw's own service manager.
-  # OPENCLAW_SERVICE_REPAIR_POLICY=external tells doctor to keep config repairs
-  # enabled while skipping gateway service installs/restarts/rewrites here.
+  # OPENCLAW_SERVICE_REPAIR_POLICY=external is OpenClaw's documented policy value
+  # for keeping config repairs enabled while skipping service installs/restarts.
   if OPENCLAW_SERVICE_REPAIR_POLICY=external openclaw doctor --fix --non-interactive >"$doctor_log" 2>&1; then
     echo "  ✅ Config sanity check passed"
     return 0
