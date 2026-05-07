@@ -83,8 +83,9 @@ fi
 # ── Resolve runtime env from full config (optional mode) ──
 if [ "$FULL_CONFIG_MODE" = "true" ]; then
   CONFIG_GATEWAY_TOKEN=$(printf '%s' "$FULL_CONFIG_JSON" | jq -r '.gateway.auth.token // empty')
+  # Supports either string model ("provider/model") or object model ({ "primary": "...", ... }).
   CONFIG_PRIMARY_MODEL=$(printf '%s' "$FULL_CONFIG_JSON" | jq -r '(.agents.defaults.model? // empty) | if type == "string" then . elif type == "object" then (.primary // empty) else empty end')
-  CONFIG_HAS_MODEL=$(printf '%s' "$FULL_CONFIG_JSON" | jq -r '(.agents.defaults.model? // empty) | if type == "string" and length > 0 then "true" elif type == "object" and ((.primary // "") | length > 0) then "true" else "false" end')
+  HAS_MODEL_IN_CONFIG=$(printf '%s' "$FULL_CONFIG_JSON" | jq -r '(.agents.defaults.model? // empty) | if type == "string" and length > 0 then "true" elif type == "object" and ((.primary // "") | length > 0) then "true" else "false" end')
   CONFIG_TELEGRAM_BOT_TOKEN=$(printf '%s' "$FULL_CONFIG_JSON" | jq -r '.channels.telegram.botToken // empty')
   CONFIG_WHATSAPP_ENABLED=$(printf '%s' "$FULL_CONFIG_JSON" | jq -r 'if (.channels.whatsapp? != null) or (.plugins.entries.whatsapp.enabled? == true) then "true" else "false" end')
 
@@ -435,7 +436,7 @@ echo "  │  📋 Configuration Summary                │"
 echo "  ├──────────────────────────────────────────┤"
 printf "  │  %-40s │\n" "OpenClaw: $OPENCLAW_VERSION"
 SUMMARY_MODEL="$LLM_MODEL"
-if [ -z "$SUMMARY_MODEL" ] && [ "$FULL_CONFIG_MODE" = "true" ] && [ "$CONFIG_HAS_MODEL" = "true" ]; then
+if [ -z "$SUMMARY_MODEL" ] && [ "$FULL_CONFIG_MODE" = "true" ] && [ "$HAS_MODEL_IN_CONFIG" = "true" ]; then
   SUMMARY_MODEL="(defined in openclaw.json)"
 fi
 if [ -z "$SUMMARY_MODEL" ]; then
