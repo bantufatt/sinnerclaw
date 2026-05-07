@@ -39,8 +39,8 @@ license: mit
 
 ## ✨ Features
 
-- 🔌 **Any LLM:** Use Claude, OpenAI GPT, Google Gemini, Grok, DeepSeek, Qwen, and 40+ providers (set `LLM_API_KEY` and `LLM_MODEL` accordingly).
-- ⚡ **Zero Config:** Duplicate this Space and set **just three** secrets (LLM_API_KEY, LLM_MODEL, GATEWAY_TOKEN) – no other setup needed.
+- 🔌 **Any LLM:** Use Claude, OpenAI GPT, Google Gemini, Grok, DeepSeek, Qwen, and 40+ providers.
+- ⚡ **Easy Setup:** Duplicate this Space and either paste your full `openclaw.json` once or use the simple 3-secret setup.
 - 🐳 **Fast Builds:** Uses a pre-built OpenClaw Docker image to deploy in minutes.
 - 🌐 **Built-In Browser:** Headless Chromium is included in the Space, so browser actions work from the start.
 - 💾 **Workspace Backup:** Chats, settings, and WhatsApp session state sync to a private HF Dataset via the `huggingface_hub` (Git fallback), preserving data automatically.
@@ -65,30 +65,39 @@ Click the button above to duplicate the template.
 
 ### Step 2: Add Your Secrets
 
-Navigate to your new Space's **Settings**, scroll down to the **Variables and secrets** section, and choose one of these setup modes.
+Navigate to your new Space's **Settings**, scroll down to the **Variables and secrets** section, and use the easiest setup that fits you.
 
-#### Mode A — Minimal (recommended)
+#### Recommended — paste your full `openclaw.json`
 
-Add the following three under **Secrets**:
+Add this under **Secrets**:
 
-- `LLM_API_KEY` – Your provider API key (e.g., Anthropic, OpenAI, OpenRouter).
-- `LLM_MODEL` – The model ID string you wish to use (e.g., `openai/gpt-4o` or `google/gemini-2.5-flash`).
-- `GATEWAY_TOKEN` – A custom password or token to secure your Control UI. *(You can use any strong password, or generate one with `openssl rand -hex 32` if you prefer).*
+- `OPENCLAW_JSON` – Paste the raw contents of your `openclaw.json`
 
-> [!TIP]
-> HuggingClaw is completely flexible! You only need these three secrets to get started. You can set other secrets later.
+If your JSON already contains your model/provider keys and gateway auth, you do **not** also need `LLM_API_KEY`, `LLM_MODEL`, or `GATEWAY_TOKEN`.
 
-#### Mode B — Full `openclaw.json` (advanced)
+Optional extras:
 
-If you already maintain a full OpenClaw config, provide exactly one of:
+- `HF_TOKEN` – only if you want workspace / WhatsApp backup to a private HF Dataset
+- `HF_USERNAME` – only if you enable that HF backup feature
 
-- `OPENCLAW_JSON` – Raw JSON content
-- `OPENCLAW_JSON_B64` – Base64-encoded JSON (recommended for large configs)
-- `OPENCLAW_CONFIG_PATH` – Absolute path inside the container
+#### Alternative — simple 3-secret setup
 
-In full-config mode, `LLM_API_KEY`, `LLM_MODEL`, and `GATEWAY_TOKEN` become optional as long as your JSON already defines model/provider keys and gateway auth.
+If you do not want to paste a full config, add these three under **Secrets**:
 
-If your JSON references placeholders such as `${NVIDIA_API_KEY_2}`, `${HF_TOKEN}`, etc., you still need to set those environment variables in HF Space Secrets.
+- `LLM_API_KEY` – Your provider API key (e.g., Anthropic, OpenAI, OpenRouter)
+- `LLM_MODEL` – The model ID string you wish to use (e.g., `openai/gpt-4o` or `google/gemini-2.5-flash`)
+- `GATEWAY_TOKEN` – The password/token for your Control UI
+
+#### Advanced alternatives to `OPENCLAW_JSON`
+
+These are supported, but most users can ignore them:
+
+- `OPENCLAW_JSON_B64` – same config, base64-encoded
+- `OPENCLAW_CONFIG_PATH` – config file path inside the container
+
+Use only one of `OPENCLAW_JSON`, `OPENCLAW_JSON_B64`, or `OPENCLAW_CONFIG_PATH`.
+
+If your config intentionally uses environment-variable placeholders, only then do you need to add those extra secrets separately.
 
 Optional: if you want to pin a specific OpenClaw release instead of `latest`, add `OPENCLAW_VERSION` under **Variables** in your Space settings. For Docker Spaces, HF passes Variables as build args during image build, so this should be a Variable, not a Secret.
 
@@ -286,7 +295,7 @@ HuggingClaw/
 2. Check HF token (warn if expired or missing).
 3. Auto-create backup dataset if missing.
 4. Restore workspace from HF Dataset.
-5. Generate `openclaw.json` from environment variables.
+5. Load your provided config or generate `openclaw.json` from environment variables.
 6. Print startup summary.
 7. Launch background tasks (auto-sync and optional channel helpers).
 8. Launch the OpenClaw gateway (start listening).
@@ -295,7 +304,7 @@ HuggingClaw/
 
 ## 🐛 Troubleshooting
 
-- **Missing secrets:** In minimal mode, ensure `LLM_API_KEY`, `LLM_MODEL`, and `GATEWAY_TOKEN` are set. In full-config mode, ensure your JSON is valid and includes required auth/model settings.
+- **Missing secrets:** Easiest path is to set `OPENCLAW_JSON` only. If you use the 3-secret mode instead, set `LLM_API_KEY`, `LLM_MODEL`, and `GATEWAY_TOKEN`. Add `HF_USERNAME` + `HF_TOKEN` only for backup.
 - **Telegram bot issues:** Verify your `TELEGRAM_BOT_TOKEN`. Check Space logs for lines like `📱 Enabling Telegram`.
 - **Backup restore failing:** Make sure `HF_USERNAME` and `HF_TOKEN` are correct (token needs write access to your Dataset).
 - **Space keeps sleeping:** Open `/` and use `Keep Space Awake` to create the external monitor.
