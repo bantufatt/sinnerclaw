@@ -21,7 +21,7 @@ CONFIG_INPUTS=0
 [ -n "$OPENCLAW_JSON_B64" ] && CONFIG_INPUTS=$((CONFIG_INPUTS + 1))
 
 if [ "$CONFIG_INPUTS" -gt 1 ]; then
-  echo "❌ Set only one of OPENCLAW_CONFIG_PATH, OPENCLAW_JSON, or OPENCLAW_JSON_B64"
+  echo "❌ Set only one environment variable: OPENCLAW_CONFIG_PATH, OPENCLAW_JSON, or OPENCLAW_JSON_B64"
   exit 1
 fi
 
