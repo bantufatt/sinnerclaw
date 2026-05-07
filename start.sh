@@ -419,7 +419,7 @@ run_openclaw_doctor_preflight() {
 }
 
 if [ "$FULL_CONFIG_MODE" = "true" ]; then
-  run_openclaw_doctor_preflight
+  run_openclaw_doctor_preflight || exit 1
 fi
 
 # ── Enable Gateway Preload Fixes ──
