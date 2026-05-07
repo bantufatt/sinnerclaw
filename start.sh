@@ -276,6 +276,20 @@ if [ "$WHATSAPP_ENABLED_NORMALIZED" = "true" ] && [ -d "$WA_BACKUP_DIR" ]; then
 fi
 
 # ── Build config ──
+# Browser availability detection for both minimal and full-config modes.
+BROWSER_EXECUTABLE_PATH=""
+for candidate in /usr/bin/chromium /usr/bin/chromium-browser /snap/bin/chromium; do
+  if [ -x "$candidate" ]; then
+    BROWSER_EXECUTABLE_PATH="$candidate"
+    break
+  fi
+done
+
+BROWSER_SHOULD_ENABLE=false
+if [ -n "$BROWSER_EXECUTABLE_PATH" ] && [ -x "$BROWSER_EXECUTABLE_PATH" ]; then
+  BROWSER_SHOULD_ENABLE=true
+fi
+
 if [ "$FULL_CONFIG_MODE" = "true" ]; then
   CONFIG_JSON="$FULL_CONFIG_JSON"
 else
@@ -309,19 +323,6 @@ CONFIG_JSON=$(echo "$CONFIG_JSON" | jq ".gateway.auth.token = \"$GATEWAY_TOKEN\"
 CONFIG_JSON=$(echo "$CONFIG_JSON" | jq ".agents.defaults.model = \"$LLM_MODEL\"")
 
 # Browser configuration (managed local Chromium in HF/Docker)
-BROWSER_EXECUTABLE_PATH=""
-for candidate in /usr/bin/chromium /usr/bin/chromium-browser /snap/bin/chromium; do
-  if [ -x "$candidate" ]; then
-    BROWSER_EXECUTABLE_PATH="$candidate"
-    break
-  fi
-done
-
-BROWSER_SHOULD_ENABLE=false
-if [ -n "$BROWSER_EXECUTABLE_PATH" ] && [ -x "$BROWSER_EXECUTABLE_PATH" ]; then
-  BROWSER_SHOULD_ENABLE=true
-fi
-
 if [ "$BROWSER_SHOULD_ENABLE" = "true" ]; then
   CONFIG_JSON=$(echo "$CONFIG_JSON" | jq \
     ".browser = {
@@ -432,7 +433,14 @@ echo "  ┌───────────────────────
 echo "  │  📋 Configuration Summary                │"
 echo "  ├──────────────────────────────────────────┤"
 printf "  │  %-40s │\n" "OpenClaw: $OPENCLAW_VERSION"
-printf "  │  %-40s │\n" "Model: $LLM_MODEL"
+SUMMARY_MODEL="$LLM_MODEL"
+if [ -z "$SUMMARY_MODEL" ] && [ "$FULL_CONFIG_MODE" = "true" ]; then
+  SUMMARY_MODEL="(defined in openclaw.json)"
+fi
+if [ -z "$SUMMARY_MODEL" ]; then
+  SUMMARY_MODEL="Not Set"
+fi
+printf "  │  %-40s │\n" "Model: $SUMMARY_MODEL"
 if [ -n "$TELEGRAM_BOT_TOKEN" ]; then
 printf "  │  %-40s │\n" "Telegram: ✅ enabled"
 else
