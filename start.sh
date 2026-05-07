@@ -10,6 +10,46 @@ OPENCLAW_VERSION="${OPENCLAW_VERSION:-latest}"
 WHATSAPP_ENABLED="${WHATSAPP_ENABLED:-false}"
 WHATSAPP_ENABLED_NORMALIZED=$(printf '%s' "$WHATSAPP_ENABLED" | tr '[:upper:]' '[:lower:]')
 SYNC_INTERVAL="${SYNC_INTERVAL:-180}"
+OPENCLAW_CONFIG_PATH="${OPENCLAW_CONFIG_PATH:-}"
+OPENCLAW_JSON="${OPENCLAW_JSON:-}"
+OPENCLAW_JSON_B64="${OPENCLAW_JSON_B64:-}"
+FULL_CONFIG_MODE=false
+FULL_CONFIG_JSON=""
+CONFIG_INPUTS=0
+[ -n "$OPENCLAW_CONFIG_PATH" ] && CONFIG_INPUTS=$((CONFIG_INPUTS + 1))
+[ -n "$OPENCLAW_JSON" ] && CONFIG_INPUTS=$((CONFIG_INPUTS + 1))
+[ -n "$OPENCLAW_JSON_B64" ] && CONFIG_INPUTS=$((CONFIG_INPUTS + 1))
+
+if [ "$CONFIG_INPUTS" -gt 1 ]; then
+  echo "❌ Set only one environment variable: OPENCLAW_CONFIG_PATH, OPENCLAW_JSON, or OPENCLAW_JSON_B64"
+  exit 1
+fi
+
+if [ "$CONFIG_INPUTS" -eq 1 ]; then
+  FULL_CONFIG_MODE=true
+fi
+
+if [ "$FULL_CONFIG_MODE" = "true" ]; then
+  if [ -n "$OPENCLAW_CONFIG_PATH" ]; then
+    if [ ! -f "$OPENCLAW_CONFIG_PATH" ]; then
+      echo "❌ OPENCLAW_CONFIG_PATH does not exist: $OPENCLAW_CONFIG_PATH"
+      exit 1
+    fi
+    FULL_CONFIG_JSON="$(cat "$OPENCLAW_CONFIG_PATH")"
+  elif [ -n "$OPENCLAW_JSON_B64" ]; then
+    if ! FULL_CONFIG_JSON="$(printf '%s' "$OPENCLAW_JSON_B64" | base64 -d 2>/dev/null)"; then
+      echo "❌ OPENCLAW_JSON_B64 is not valid base64"
+      exit 1
+    fi
+  else
+    FULL_CONFIG_JSON="$OPENCLAW_JSON"
+  fi
+
+  if ! printf '%s' "$FULL_CONFIG_JSON" | jq -e . >/dev/null 2>&1; then
+    echo "❌ Provided full OpenClaw config is not valid JSON"
+    exit 1
+  fi
+fi
 echo ""
 echo "  ╔══════════════════════════════════════════╗"
 echo "  ║          🦞 HuggingClaw Gateway          ║"
@@ -18,23 +58,61 @@ echo ""
 
 # ── Validate required secrets ──
 ERRORS=""
-if [ -z "$LLM_API_KEY" ]; then
-  ERRORS="${ERRORS}  ❌ LLM_API_KEY is not set\n"
-fi
-if [ -z "$LLM_MODEL" ]; then
-  ERRORS="${ERRORS}  ❌ LLM_MODEL is not set (e.g. google/gemini-2.5-flash, anthropic/claude-sonnet-4-5, openai/gpt-4)\n"
-fi
-if [ -z "$GATEWAY_TOKEN" ]; then
-  ERRORS="${ERRORS}  ❌ GATEWAY_TOKEN is not set (generate: openssl rand -hex 32)\n"
+if [ "$FULL_CONFIG_MODE" != "true" ]; then
+  if [ -z "$LLM_API_KEY" ]; then
+    ERRORS="${ERRORS}  ❌ LLM_API_KEY is not set\n"
+  fi
+  if [ -z "$LLM_MODEL" ]; then
+    ERRORS="${ERRORS}  ❌ LLM_MODEL is not set (e.g. google/gemini-2.5-flash, anthropic/claude-sonnet-4-5, openai/gpt-4)\n"
+  fi
+  if [ -z "$GATEWAY_TOKEN" ]; then
+    ERRORS="${ERRORS}  ❌ GATEWAY_TOKEN is not set (generate: openssl rand -hex 32)\n"
+  fi
 fi
 if [ -n "$ERRORS" ]; then
   echo "Missing required secrets:"
   echo -e "$ERRORS"
-  echo "Add them in HF Spaces → Settings → Secrets"
+  if [ "$FULL_CONFIG_MODE" = "true" ]; then
+    echo "Add them in your full config or as HF Spaces Secrets"
+  else
+    echo "Add them in HF Spaces → Settings → Secrets"
+  fi
   exit 1
 fi
 
-# ── Set LLM env based on model name ──
+# ── Resolve runtime env from full config (optional mode) ──
+if [ "$FULL_CONFIG_MODE" = "true" ]; then
+  CONFIG_GATEWAY_TOKEN=$(printf '%s' "$FULL_CONFIG_JSON" | jq -r '.gateway.auth.token // empty')
+  # Supports either string model ("provider/model") or object model ({ "primary": "...", ... }).
+  CONFIG_PRIMARY_MODEL=$(printf '%s' "$FULL_CONFIG_JSON" | jq -r '(.agents.defaults.model? // empty) | if type == "string" then . elif type == "object" then (.primary // empty) else empty end')
+  HAS_MODEL_IN_CONFIG="false"
+  if [ -n "$CONFIG_PRIMARY_MODEL" ]; then
+    HAS_MODEL_IN_CONFIG="true"
+  fi
+  CONFIG_TELEGRAM_BOT_TOKEN=$(printf '%s' "$FULL_CONFIG_JSON" | jq -r '.channels.telegram.botToken // empty')
+  CONFIG_WHATSAPP_ENABLED=$(printf '%s' "$FULL_CONFIG_JSON" | jq -r 'if (.channels.whatsapp? != null) or (.plugins.entries.whatsapp.enabled? == true) then "true" else "false" end')
+
+  if [ -z "$GATEWAY_TOKEN" ] && [ -n "$CONFIG_GATEWAY_TOKEN" ]; then
+    export GATEWAY_TOKEN="$CONFIG_GATEWAY_TOKEN"
+  fi
+  if [ -z "$LLM_MODEL" ] && [ -n "$CONFIG_PRIMARY_MODEL" ]; then
+    LLM_MODEL="$CONFIG_PRIMARY_MODEL"
+    export LLM_MODEL
+  fi
+  if [ -z "$TELEGRAM_BOT_TOKEN" ] && [ -n "$CONFIG_TELEGRAM_BOT_TOKEN" ]; then
+    export TELEGRAM_BOT_TOKEN="$CONFIG_TELEGRAM_BOT_TOKEN"
+  fi
+  if [ "$WHATSAPP_ENABLED_NORMALIZED" != "true" ] && [ "$CONFIG_WHATSAPP_ENABLED" = "true" ]; then
+    WHATSAPP_ENABLED_NORMALIZED="true"
+    export WHATSAPP_ENABLED="true"
+  fi
+fi
+
+# ── Set LLM env based on model name (minimal mode / optional override mode) ──
+# In full-config mode this is intentionally optional: users may define provider
+# keys directly in OPENCLAW_JSON without setting LLM_API_KEY/LLM_MODEL.
+
+if [ -n "$LLM_API_KEY" ] && [ -n "$LLM_MODEL" ]; then
 
 # Auto-correct Gemini models to use google/ prefix if anthropic/ was mistakenly used
 if [[ "$LLM_MODEL" == "anthropic/gemini"* ]]; then
@@ -88,6 +166,7 @@ case "$LLM_PROVIDER" in
     export ANTHROPIC_API_KEY="$LLM_API_KEY"
     ;;
 esac
+fi
 
 # ── Setup directories ──
 mkdir -p /home/node/.openclaw/agents/main/sessions
@@ -202,6 +281,23 @@ if [ "$WHATSAPP_ENABLED_NORMALIZED" = "true" ] && [ -d "$WA_BACKUP_DIR" ]; then
 fi
 
 # ── Build config ──
+# Browser availability detection for both minimal and full-config modes.
+BROWSER_EXECUTABLE_PATH=""
+for candidate in /usr/bin/chromium /usr/bin/chromium-browser /snap/bin/chromium; do
+  if [ -x "$candidate" ]; then
+    BROWSER_EXECUTABLE_PATH="$candidate"
+    break
+  fi
+done
+
+BROWSER_SHOULD_ENABLE=false
+if [ -n "$BROWSER_EXECUTABLE_PATH" ] && [ -x "$BROWSER_EXECUTABLE_PATH" ]; then
+  BROWSER_SHOULD_ENABLE=true
+fi
+
+if [ "$FULL_CONFIG_MODE" = "true" ]; then
+  CONFIG_JSON="$FULL_CONFIG_JSON"
+else
 CONFIG_JSON=$(cat <<'CONFIGEOF'
 {
   "gateway": {
@@ -232,19 +328,6 @@ CONFIG_JSON=$(echo "$CONFIG_JSON" | jq ".gateway.auth.token = \"$GATEWAY_TOKEN\"
 CONFIG_JSON=$(echo "$CONFIG_JSON" | jq ".agents.defaults.model = \"$LLM_MODEL\"")
 
 # Browser configuration (managed local Chromium in HF/Docker)
-BROWSER_EXECUTABLE_PATH=""
-for candidate in /usr/bin/chromium /usr/bin/chromium-browser /snap/bin/chromium; do
-  if [ -x "$candidate" ]; then
-    BROWSER_EXECUTABLE_PATH="$candidate"
-    break
-  fi
-done
-
-BROWSER_SHOULD_ENABLE=false
-if [ -n "$BROWSER_EXECUTABLE_PATH" ] && [ -x "$BROWSER_EXECUTABLE_PATH" ]; then
-  BROWSER_SHOULD_ENABLE=true
-fi
-
 if [ "$BROWSER_SHOULD_ENABLE" = "true" ]; then
   CONFIG_JSON=$(echo "$CONFIG_JSON" | jq \
     ".browser = {
@@ -304,6 +387,7 @@ if [ "$WHATSAPP_ENABLED_NORMALIZED" = "true" ]; then
   CONFIG_JSON=$(echo "$CONFIG_JSON" | jq '.plugins.entries.whatsapp = {"enabled": true}')
   CONFIG_JSON=$(echo "$CONFIG_JSON" | jq '.channels.whatsapp = {"dmPolicy": "pairing"}')
 fi
+fi
 
 # Write config
 echo "$CONFIG_JSON" > "/home/node/.openclaw/openclaw.json"
@@ -354,7 +438,14 @@ echo "  ┌───────────────────────
 echo "  │  📋 Configuration Summary                │"
 echo "  ├──────────────────────────────────────────┤"
 printf "  │  %-40s │\n" "OpenClaw: $OPENCLAW_VERSION"
-printf "  │  %-40s │\n" "Model: $LLM_MODEL"
+SUMMARY_MODEL="$LLM_MODEL"
+if [ -z "$SUMMARY_MODEL" ] && [ "$FULL_CONFIG_MODE" = "true" ] && [ "$HAS_MODEL_IN_CONFIG" = "true" ]; then
+  SUMMARY_MODEL="(defined in openclaw.json)"
+fi
+if [ -z "$SUMMARY_MODEL" ]; then
+  SUMMARY_MODEL="Not Set"
+fi
+printf "  │  %-40s │\n" "Model: $SUMMARY_MODEL"
 if [ -n "$TELEGRAM_BOT_TOKEN" ]; then
 printf "  │  %-40s │\n" "Telegram: ✅ enabled"
 else
@@ -398,9 +489,19 @@ echo ""
 # ── Trigger Webhook on Restart ──
 if [ -n "$WEBHOOK_URL" ]; then
   echo "🔔 Sending restart webhook..."
-  curl -s -X POST "$WEBHOOK_URL" \
-       -H "Content-Type: application/json" \
-       -d '{"event":"restart", "status":"success", "message":"HuggingClaw gateway has started/restarted.", "model": "'"$LLM_MODEL"'"}' >/dev/null 2>&1 &
+  WEBHOOK_MODEL="$LLM_MODEL"
+  if [ -z "$WEBHOOK_MODEL" ] && [ -n "$CONFIG_PRIMARY_MODEL" ]; then
+    WEBHOOK_MODEL="$CONFIG_PRIMARY_MODEL"
+  fi
+  if [ -n "$WEBHOOK_MODEL" ]; then
+    curl -s -X POST "$WEBHOOK_URL" \
+         -H "Content-Type: application/json" \
+         -d '{"event":"restart", "status":"success", "message":"HuggingClaw gateway has started/restarted.", "model": "'"$WEBHOOK_MODEL"'"}' >/dev/null 2>&1 &
+  else
+    curl -s -X POST "$WEBHOOK_URL" \
+         -H "Content-Type: application/json" \
+         -d '{"event":"restart", "status":"success", "message":"HuggingClaw gateway has started/restarted."}' >/dev/null 2>&1 &
+  fi
 fi
 
 # ── Trap SIGTERM for graceful shutdown ──

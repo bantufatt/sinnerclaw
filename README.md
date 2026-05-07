@@ -65,7 +65,11 @@ Click the button above to duplicate the template.
 
 ### Step 2: Add Your Secrets
 
-Navigate to your new Space's **Settings**, scroll down to the **Variables and secrets** section, and add the following three under **Secrets**:
+Navigate to your new Space's **Settings**, scroll down to the **Variables and secrets** section, and choose one of these setup modes.
+
+#### Mode A — Minimal (recommended)
+
+Add the following three under **Secrets**:
 
 - `LLM_API_KEY` – Your provider API key (e.g., Anthropic, OpenAI, OpenRouter).
 - `LLM_MODEL` – The model ID string you wish to use (e.g., `openai/gpt-4o` or `google/gemini-2.5-flash`).
@@ -73,6 +77,18 @@ Navigate to your new Space's **Settings**, scroll down to the **Variables and se
 
 > [!TIP]
 > HuggingClaw is completely flexible! You only need these three secrets to get started. You can set other secrets later.
+
+#### Mode B — Full `openclaw.json` (advanced)
+
+If you already maintain a full OpenClaw config, provide exactly one of:
+
+- `OPENCLAW_JSON` – Raw JSON content
+- `OPENCLAW_JSON_B64` – Base64-encoded JSON (recommended for large configs)
+- `OPENCLAW_CONFIG_PATH` – Absolute path inside the container
+
+In full-config mode, `LLM_API_KEY`, `LLM_MODEL`, and `GATEWAY_TOKEN` become optional as long as your JSON already defines model/provider keys and gateway auth.
+
+If your JSON references placeholders such as `${NVIDIA_API_KEY_2}`, `${HF_TOKEN}`, etc., you still need to set those environment variables in HF Space Secrets.
 
 Optional: if you want to pin a specific OpenClaw release instead of `latest`, add `OPENCLAW_VERSION` under **Variables** in your Space settings. For Docker Spaces, HF passes Variables as build args during image build, so this should be a Variable, not a Secret.
 
@@ -279,7 +295,7 @@ HuggingClaw/
 
 ## 🐛 Troubleshooting
 
-- **Missing secrets:** Ensure `LLM_API_KEY`, `LLM_MODEL`, and `GATEWAY_TOKEN` are set in your Space **Settings → Secrets**.
+- **Missing secrets:** In minimal mode, ensure `LLM_API_KEY`, `LLM_MODEL`, and `GATEWAY_TOKEN` are set. In full-config mode, ensure your JSON is valid and includes required auth/model settings.
 - **Telegram bot issues:** Verify your `TELEGRAM_BOT_TOKEN`. Check Space logs for lines like `📱 Enabling Telegram`.
 - **Backup restore failing:** Make sure `HF_USERNAME` and `HF_TOKEN` are correct (token needs write access to your Dataset).
 - **Space keeps sleeping:** Open `/` and use `Keep Space Awake` to create the external monitor.
