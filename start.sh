@@ -85,7 +85,10 @@ if [ "$FULL_CONFIG_MODE" = "true" ]; then
   CONFIG_GATEWAY_TOKEN=$(printf '%s' "$FULL_CONFIG_JSON" | jq -r '.gateway.auth.token // empty')
   # Supports either string model ("provider/model") or object model ({ "primary": "...", ... }).
   CONFIG_PRIMARY_MODEL=$(printf '%s' "$FULL_CONFIG_JSON" | jq -r '(.agents.defaults.model? // empty) | if type == "string" then . elif type == "object" then (.primary // empty) else empty end')
-  HAS_MODEL_IN_CONFIG=$(printf '%s' "$FULL_CONFIG_JSON" | jq -r '(.agents.defaults.model? // empty) | if type == "string" and length > 0 then "true" elif type == "object" and ((.primary // "") | length > 0) then "true" else "false" end')
+  HAS_MODEL_IN_CONFIG="false"
+  if [ -n "$CONFIG_PRIMARY_MODEL" ]; then
+    HAS_MODEL_IN_CONFIG="true"
+  fi
   CONFIG_TELEGRAM_BOT_TOKEN=$(printf '%s' "$FULL_CONFIG_JSON" | jq -r '.channels.telegram.botToken // empty')
   CONFIG_WHATSAPP_ENABLED=$(printf '%s' "$FULL_CONFIG_JSON" | jq -r 'if (.channels.whatsapp? != null) or (.plugins.entries.whatsapp.enabled? == true) then "true" else "false" end')
 
@@ -105,7 +108,7 @@ if [ "$FULL_CONFIG_MODE" = "true" ]; then
   fi
 fi
 
-# ── Set LLM env based on model name (minimal mode / compatibility mode) ──
+# ── Set LLM env based on model name (minimal mode / optional override mode) ──
 # In full-config mode this is intentionally optional: users may define provider
 # keys directly in OPENCLAW_JSON without setting LLM_API_KEY/LLM_MODEL.
 
