@@ -92,6 +92,7 @@ if [ "$FULL_CONFIG_MODE" = "true" ]; then
   fi
   if [ -z "$LLM_MODEL" ] && [ -n "$CONFIG_PRIMARY_MODEL" ]; then
     LLM_MODEL="$CONFIG_PRIMARY_MODEL"
+    export LLM_MODEL
   fi
   if [ -z "$TELEGRAM_BOT_TOKEN" ] && [ -n "$CONFIG_TELEGRAM_BOT_TOKEN" ]; then
     export TELEGRAM_BOT_TOKEN="$CONFIG_TELEGRAM_BOT_TOKEN"
@@ -103,6 +104,8 @@ if [ "$FULL_CONFIG_MODE" = "true" ]; then
 fi
 
 # ── Set LLM env based on model name (minimal mode / compatibility mode) ──
+# In full-config mode this is intentionally optional: users may define provider
+# keys directly in OPENCLAW_JSON without setting LLM_API_KEY/LLM_MODEL.
 
 if [ -n "$LLM_API_KEY" ] && [ -n "$LLM_MODEL" ]; then
 
