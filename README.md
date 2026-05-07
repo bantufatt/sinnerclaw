@@ -69,11 +69,19 @@ Navigate to your new Space's **Settings**, scroll down to the **Variables and se
 
 #### Recommended — paste your full `openclaw.json`
 
-Add this under **Secrets**:
+Add one of these under **Secrets**:
 
 - `OPENCLAW_JSON` – Paste the raw contents of your `openclaw.json`
+- `OPENCLAW_JSON_B64` – Same config, base64-encoded, if you prefer pasting it that way
 
 If your JSON already contains your model/provider keys and gateway auth, you do **not** also need `LLM_API_KEY`, `LLM_MODEL`, or `GATEWAY_TOKEN`.
+
+This is the best option if you want:
+
+- provider keys stored directly inside `openclaw.json`
+- model/provider configs to keep following upstream OpenClaw changes
+- multi-provider setups or API rotation managed entirely in JSON
+- zero need to create 10–16 extra HF secrets just to mirror the same config
 
 Optional extras:
 
@@ -88,16 +96,15 @@ If you do not want to paste a full config, add these three under **Secrets**:
 - `LLM_MODEL` – The model ID string you wish to use (e.g., `openai/gpt-4o` or `google/gemini-2.5-flash`)
 - `GATEWAY_TOKEN` – The password/token for your Control UI
 
-#### Advanced alternatives to `OPENCLAW_JSON`
+#### Advanced alternative to the pasted secret
 
-These are supported, but most users can ignore them:
+This is supported, but most users can ignore it:
 
-- `OPENCLAW_JSON_B64` – same config, base64-encoded
 - `OPENCLAW_CONFIG_PATH` – config file path inside the container
 
 Use only one of `OPENCLAW_JSON`, `OPENCLAW_JSON_B64`, or `OPENCLAW_CONFIG_PATH`.
 
-If your config intentionally uses environment-variable placeholders, only then do you need to add those extra secrets separately.
+When you use full-config mode, HuggingClaw writes your config to the normal OpenClaw config location and runs an `openclaw doctor --fix --non-interactive` sanity pass before startup, so invalid or outdated config issues fail early instead of breaking later at runtime.
 
 Optional: if you want to pin a specific OpenClaw release instead of `latest`, add `OPENCLAW_VERSION` under **Variables** in your Space settings. For Docker Spaces, HF passes Variables as build args during image build, so this should be a Variable, not a Secret.
 
@@ -296,15 +303,17 @@ HuggingClaw/
 3. Auto-create backup dataset if missing.
 4. Restore workspace from HF Dataset.
 5. Load your provided config or generate `openclaw.json` from environment variables.
-6. Print startup summary.
-7. Launch background tasks (auto-sync and optional channel helpers).
-8. Launch the OpenClaw gateway (start listening).
-9. On `SIGTERM`, save workspace and exit cleanly.
+6. In full-config mode, run an OpenClaw doctor sanity check and apply safe non-interactive config repairs.
+7. Print startup summary.
+8. Launch background tasks (auto-sync and optional channel helpers).
+9. Launch the OpenClaw gateway (start listening).
+10. On `SIGTERM`, save workspace and exit cleanly.
 ```
 
 ## 🐛 Troubleshooting
 
-- **Missing secrets:** Easiest path is to set `OPENCLAW_JSON` only. If you use the 3-secret mode instead, set `LLM_API_KEY`, `LLM_MODEL`, and `GATEWAY_TOKEN`. Add `HF_USERNAME` + `HF_TOKEN` only for backup.
+- **Missing secrets:** Easiest path is to set `OPENCLAW_JSON` or `OPENCLAW_JSON_B64` only. If your full config already contains provider keys, gateway auth, and rotation settings, you do not need to split them into separate HF secrets. Add `HF_USERNAME` + `HF_TOKEN` only for backup.
+- **Config / model issues after an OpenClaw update:** Startup now runs `openclaw doctor --fix --non-interactive` before launch. If it still fails, inspect the printed doctor output in Space logs and update the affected `openclaw.json` fields.
 - **Telegram bot issues:** Verify your `TELEGRAM_BOT_TOKEN`. Check Space logs for lines like `📱 Enabling Telegram`.
 - **Backup restore failing:** Make sure `HF_USERNAME` and `HF_TOKEN` are correct (token needs write access to your Dataset).
 - **Space keeps sleeping:** Open `/` and use `Keep Space Awake` to create the external monitor.

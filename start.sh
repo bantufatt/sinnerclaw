@@ -393,6 +393,35 @@ fi
 echo "$CONFIG_JSON" > "/home/node/.openclaw/openclaw.json"
 chmod 600 /home/node/.openclaw/openclaw.json
 
+# ── Sanity-check config with OpenClaw doctor ──
+run_openclaw_doctor_preflight() {
+  local doctor_log="/home/node/.openclaw/doctor.log"
+  local config_backup="/home/node/.openclaw/openclaw.json.bak"
+
+  if ! command -v openclaw >/dev/null 2>&1; then
+    echo "⚠️  Skipping OpenClaw doctor check because the CLI is unavailable"
+    return 0
+  fi
+
+  echo "🩺 Running OpenClaw doctor sanity check..."
+  rm -f "$doctor_log"
+
+  if OPENCLAW_SERVICE_REPAIR_POLICY=external openclaw doctor --fix --non-interactive >"$doctor_log" 2>&1; then
+    rm -f "$config_backup"
+    echo "  ✅ Config sanity check passed"
+    return 0
+  fi
+
+  echo "  ❌ OpenClaw doctor reported a config/runtime problem"
+  echo "────────────────────────────────────────────"
+  tail -30 "$doctor_log" 2>/dev/null || true
+  return 1
+}
+
+if [ "$FULL_CONFIG_MODE" = "true" ]; then
+  run_openclaw_doctor_preflight
+fi
+
 # ── Enable Gateway Preload Fixes ──
 # This preload script keeps iframe embedding working on HF Spaces.
 export NODE_OPTIONS="${NODE_OPTIONS:+$NODE_OPTIONS }--require /home/node/app/iframe-fix.cjs"
