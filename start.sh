@@ -405,8 +405,8 @@ run_openclaw_doctor_preflight() {
   echo "🩺 Running OpenClaw doctor sanity check..."
   rm -f "$doctor_log"
 
-  # HF Spaces manages the process lifecycle for this container, so keep doctor in
-  # read/repair mode for config issues only and skip gateway service rewrites.
+  # HF Spaces manages the process lifecycle for this container, so allow doctor
+  # to repair config issues but skip gateway service rewrites/installs here.
   if OPENCLAW_SERVICE_REPAIR_POLICY=external openclaw doctor --fix --non-interactive >"$doctor_log" 2>&1; then
     echo "  ✅ Config sanity check passed"
     return 0
