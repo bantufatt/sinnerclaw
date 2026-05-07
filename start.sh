@@ -486,12 +486,18 @@ echo ""
 if [ -n "$WEBHOOK_URL" ]; then
   echo "🔔 Sending restart webhook..."
   WEBHOOK_MODEL="$LLM_MODEL"
-  if [ -z "$WEBHOOK_MODEL" ]; then
-    WEBHOOK_MODEL="$SUMMARY_MODEL"
+  if [ -z "$WEBHOOK_MODEL" ] && [ -n "$CONFIG_PRIMARY_MODEL" ]; then
+    WEBHOOK_MODEL="$CONFIG_PRIMARY_MODEL"
   fi
-  curl -s -X POST "$WEBHOOK_URL" \
-       -H "Content-Type: application/json" \
-       -d '{"event":"restart", "status":"success", "message":"HuggingClaw gateway has started/restarted.", "model": "'"$WEBHOOK_MODEL"'"}' >/dev/null 2>&1 &
+  if [ -n "$WEBHOOK_MODEL" ]; then
+    curl -s -X POST "$WEBHOOK_URL" \
+         -H "Content-Type: application/json" \
+         -d '{"event":"restart", "status":"success", "message":"HuggingClaw gateway has started/restarted.", "model": "'"$WEBHOOK_MODEL"'"}' >/dev/null 2>&1 &
+  else
+    curl -s -X POST "$WEBHOOK_URL" \
+         -H "Content-Type: application/json" \
+         -d '{"event":"restart", "status":"success", "message":"HuggingClaw gateway has started/restarted."}' >/dev/null 2>&1 &
+  fi
 fi
 
 # ── Trap SIGTERM for graceful shutdown ──
