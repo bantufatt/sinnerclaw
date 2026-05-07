@@ -104,7 +104,7 @@ This is supported, but most users can ignore it:
 
 Use only one of `OPENCLAW_JSON`, `OPENCLAW_JSON_B64`, or `OPENCLAW_CONFIG_PATH`.
 
-When you use full-config mode (that means setting `OPENCLAW_JSON`, `OPENCLAW_JSON_B64`, or `OPENCLAW_CONFIG_PATH`), HuggingClaw writes your config to the normal OpenClaw config location and runs an `openclaw doctor --fix --non-interactive` sanity pass before startup, so invalid or outdated config issues fail early instead of breaking later at runtime.
+When you use full-config mode (that means setting `OPENCLAW_JSON`, `OPENCLAW_JSON_B64`, or `OPENCLAW_CONFIG_PATH`), HuggingClaw writes your config to the normal OpenClaw config location. It then runs `openclaw doctor --fix --non-interactive` before startup so invalid or outdated config issues fail early instead of breaking later at runtime.
 
 Optional: if you want to pin a specific OpenClaw release instead of `latest`, add `OPENCLAW_VERSION` under **Variables** in your Space settings. For Docker Spaces, HF passes Variables as build args during image build, so this should be a Variable, not a Secret.
 

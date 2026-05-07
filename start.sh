@@ -406,7 +406,6 @@ run_openclaw_doctor_preflight() {
   rm -f "$doctor_log"
 
   if OPENCLAW_SERVICE_REPAIR_POLICY=external openclaw doctor --fix --non-interactive >"$doctor_log" 2>&1; then
-    rm -f "/home/node/.openclaw/openclaw.json.bak"
     echo "  ✅ Config sanity check passed"
     return 0
   fi
